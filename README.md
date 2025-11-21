@@ -193,7 +193,7 @@ NODE_ENV=development
 # Database
 MONGO_URI=mongodb://localhost:27017/chatncollab
 # Or use MongoDB Atlas:
-# MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/chatncollab
+# MONGO_URI=************************
 
 # Authentication
 JWT_SECRET=your_super_secret_jwt_key_change_this
