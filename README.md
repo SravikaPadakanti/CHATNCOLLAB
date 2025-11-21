@@ -29,8 +29,9 @@ CHATNCOLLAB is a full-stack web application designed to help users create projec
 
 ### 🤖 AI Assistance
 - **Smart Task Suggestions** – AI-powered recommendations for project workflow
-- **Automated Task Generation** – Create tasks from project descriptions
+- **Automated Task Generation** – Create tasks from project descriptions using Google Gemini
 - **Intelligent Responses** – Get help with project planning and execution
+- **Natural Language Processing** – Understand context and provide relevant suggestions
 
 ---
 
@@ -132,6 +133,7 @@ CHATNCOLLAB/
 - **Node.js** (v16 or higher)
 - **MongoDB** (local or Atlas)
 - **Redis** (required for caching) - [Install Redis](https://redis.io/docs/getting-started/installation/)
+- **Google Gemini API Key** (required for AI features) - [Get API Key](https://makersuite.google.com/app/apikey)
 - **npm** or **yarn**
 
 ### 1. Clone the Repository
@@ -174,6 +176,14 @@ redis-cli ping
 # Should return: PONG
 ```
 
+**Get Google Gemini API Key:**
+
+1. Visit [Google AI Studio](https://makersuite.google.com/app/apikey)
+2. Sign in with your Google account
+3. Click "Create API Key"
+4. Copy your API key
+5. Add it to your `.env` file
+
 Create a `.env` file in the `backend` directory:
 
 ```env
@@ -196,8 +206,9 @@ REDIS_PASSWORD=
 REDIS_HOST=localhost
 REDIS_PORT=6379
 
-# AI Service (Optional)
-OPENAI_API_KEY=your_openai_api_key
+# AI Service (Required - Google Gemini)
+GEMINI_API_KEY=your_google_gemini_api_key_here
+# Get your API key from: https://makersuite.google.com/app/apikey
 
 # CORS
 ALLOWED_ORIGINS=http://localhost:5173
@@ -247,7 +258,7 @@ npm run dev
 | `REDIS_HOST` | Redis host address | **Yes (Required)** |
 | `REDIS_PORT` | Redis port number | **Yes (Required)** |
 | `REDIS_PASSWORD` | Redis password (if configured) | No |
-| `OPENAI_API_KEY` | OpenAI API key for AI features | No |
+| `GEMINI_API_KEY` | Google Gemini API key for AI features | **Yes (Required)** |
 | `ALLOWED_ORIGINS` | CORS allowed origins | No |
 
 ### Frontend Environment Variables
@@ -340,9 +351,10 @@ npm start
 - Activity logs and notifications
 
 ### AI-Powered Assistance
-- Generate task lists from project descriptions
-- Get suggestions for project milestones
+- Generate task lists from project descriptions using Google Gemini AI
+- Get intelligent suggestions for project milestones
 - Smart recommendations for task prioritization
+- Natural language understanding for better collaboration
 
 ---
 
@@ -418,6 +430,17 @@ For questions or support, reach out via:
 - Socket.io for real-time communication
 - MongoDB for reliable data storage
 - TailwindCSS for beautiful UI components
+- Google Gemini AI for intelligent assistance
+
+---
+
+## 📚 Additional Resources
+
+- [Google Gemini API Documentation](https://ai.google.dev/docs)
+- [Socket.io Documentation](https://socket.io/docs/)
+- [MongoDB Documentation](https://docs.mongodb.com/)
+- [Redis Documentation](https://redis.io/docs/)
+- [React Documentation](https://react.dev/)
 
 ---
 
