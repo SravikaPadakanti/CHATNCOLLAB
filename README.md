@@ -444,16 +444,4 @@ For questions or support, reach out via:
 
 ---
 
-## 🚧 Roadmap
-
-- [ ] Video/voice calling integration
-- [ ] File sharing and attachments
-- [ ] Advanced AI task automation
-- [ ] Mobile app (React Native)
-- [ ] Dark mode support
-- [ ] Advanced analytics dashboard
-- [ ] Third-party integrations (Slack, Trello, etc.)
-
----
-
 **⭐ If you find this project useful, please consider giving it a star on GitHub!**
