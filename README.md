@@ -1,8 +1,7 @@
 # CHATNCOLLAB – Real-time Project Collaboration Platform
 
 ![CHATNCOLLAB Banner](https://img.shields.io/badge/CHATNCOLLAB-Collaboration%20Platform-blue?style=for-the-badge)
-![License](https://img.shields.io/badge/license-MIT-green?style=flat-square)
-![Version](https://img.shields.io/badge/version-1.0.0-orange?style=flat-square)
+
 
 CHATNCOLLAB is a full-stack web application designed to help users create projects, collaborate, chat, and manage tasks in real time. It integrates AI assistance, authentication, project management, and a modern frontend + backend architecture.
 
