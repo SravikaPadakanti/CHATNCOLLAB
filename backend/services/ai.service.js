@@ -101,9 +101,79 @@ const model = genAI.getGenerativeModel({
     `
 });
 
+const getMockResponse = (prompt) => {
+    const p = prompt.toLowerCase();
+    
+    if (p.includes("express") || p.includes("server") || p.includes("node") || p.includes("backend")) {
+        return JSON.stringify({
+            text: "Here is a simple Express server file tree. I have populated the code in the explorer panel. Click **run** on the right side of the editor to install express and start the server in the WebContainer!",
+            fileTree: {
+                "app.js": {
+                    file: {
+                        contents: "import express from 'express';\nconst app = express();\n\napp.get('/', (req, res) => {\n  res.send('Hello from the interactive AI WebContainer!');\n});\n\napp.listen(3000, () => {\n  console.log('Server is running on port 3000');\n});"
+                    }
+                },
+                "package.json": {
+                    file: {
+                        contents: "{\n  \"name\": \"temp-server\",\n  \"version\": \"1.0.0\",\n  \"type\": \"module\",\n  \"main\": \"app.js\",\n  \"scripts\": {\n    \"start\": \"node app.js\"\n  },\n  \"dependencies\": {\n    \"express\": \"^4.21.2\"\n  }\n}"
+                    }
+                }
+            },
+            buildCommand: {
+                mainItem: "npm",
+                commands: ["install"]
+            },
+            startCommand: {
+                mainItem: "npm",
+                commands: ["start"]
+            }
+        });
+    }
+
+    if (p.includes("html") || p.includes("website") || p.includes("page") || p.includes("frontend")) {
+        return JSON.stringify({
+            text: "Here is a basic HTML boilerplate file tree. I have loaded it into the explorer. Click **run** on the editor to preview it inside the WebContainer.",
+            fileTree: {
+                "index.html": {
+                    file: {
+                        contents: "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n  <meta charset=\"UTF-8\">\n  <title>Hello World</title>\n  <style>\n    body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; background: #e0f2fe; }\n    h1 { color: #0369a1; }\n  </style>\n</head>\n<body>\n  <h1>Hello from CHATNCOLLAB AI!</h1>\n</body>\n</html>"
+                    }
+                },
+                "package.json": {
+                    file: {
+                        contents: "{\n  \"name\": \"html-preview\",\n  \"version\": \"1.0.0\",\n  \"scripts\": {\n    \"start\": \"npx -y serve -l 3000\"\n  }\n}"
+                    }
+                }
+            },
+            buildCommand: {
+                mainItem: "echo",
+                commands: ["building..."]
+            },
+            startCommand: {
+                mainItem: "npm",
+                commands: ["start"]
+            }
+        });
+    }
+
+    return JSON.stringify({
+        text: `Hello! I am your AI assistant. You can ask me to create code files, for example:\n- "@ai create an express app"\n- "@ai generate a basic html website"`
+    });
+};
+
 export const generateResult = async (prompt) => {
+    if (!process.env.GOOGLE_AI_KEY || process.env.GOOGLE_AI_KEY.includes("Dummy") || process.env.GOOGLE_AI_KEY.includes("your_")) {
+        console.log("Using local mock response for prompt:", prompt);
+        return getMockResponse(prompt);
+    }
 
-    const result = await model.generateContent(prompt);
-
-    return result.response.text()
+    try {
+        const result = await model.generateContent(prompt);
+        return result.response.text();
+    } catch (error) {
+        console.error("AI Generation Error:", error);
+        return JSON.stringify({
+            text: `⚠️ **AI Service Error:** Failed to generate response.\n\n*Reason: ${error.message}*`
+        });
+    }
 }

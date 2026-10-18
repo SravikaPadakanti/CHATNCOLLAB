@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: chatncollab
+    runtime: node
+    plan: free
+    region: oregon
+    buildCommand: npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: MONGODB_URI
+        sync: false
+        # Enter your MongoDB Atlas URI here, e.g. mongodb+srv://<user>:<password>@cluster.mongodb.net/chatncollab
+      - key: GOOGLE_AI_KEY
+        sync: false
+        # Enter your Google Gemini API Key here (free at aistudio.google.com)
+      - key: USE_MOCK_MONGO
+        value: false
+      - key: USE_MOCK_REDIS
+        value: true

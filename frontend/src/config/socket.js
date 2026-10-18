@@ -5,8 +5,9 @@ let socketInstance = null;
 
 
 export const initializeSocket = (projectId) => {
+    const socketUrl = import.meta.env.VITE_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
-    socketInstance = socket(import.meta.env.VITE_API_URL, {
+    socketInstance = socket(socketUrl, {
         auth: {
             token: localStorage.getItem('token')
         },
@@ -16,7 +17,6 @@ export const initializeSocket = (projectId) => {
     });
 
     return socketInstance;
-
 }
 
 export const receiveMessage = (eventName, cb) => {
