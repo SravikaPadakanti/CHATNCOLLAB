@@ -11,11 +11,13 @@ const __dirname = path.dirname(__filename);
 dotenv.config();
 dotenv.config({ path: path.join(__dirname, '../.env') });
 
-// Ensure reliable DNS resolution for MongoDB Atlas SRV connection strings
-try {
-    dns.setServers(['8.8.8.8', '1.1.1.1']);
-} catch (e) {
-    // ignore if restricted
+// Ensure reliable DNS resolution on local Windows machines without interfering with cloud container DNS
+if (process.platform === 'win32' || process.env.FORCE_PUBLIC_DNS === 'true') {
+    try {
+        dns.setServers(['8.8.8.8', '1.1.1.1']);
+    } catch (e) {
+        // ignore if restricted
+    }
 }
 
 let mongod = null;
