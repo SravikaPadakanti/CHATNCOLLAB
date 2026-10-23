@@ -60,30 +60,78 @@ export const addUserToProject = async (req, res) => {
     }
 
     try {
-
-        const { projectId, users } = req.body
+        const { projectId, users, email } = req.body;
 
         const loggedInUser = await userModel.findOne({
             email: req.user.email
-        })
+        });
 
+        let targetUserIds = [];
+        if (Array.isArray(users)) {
+            targetUserIds = [ ...users ];
+        }
+
+        if (email && typeof email === 'string' && email.trim()) {
+            const foundUser = await userModel.findOne({ email: email.trim().toLowerCase() });
+            if (!foundUser) {
+                return res.status(404).json({
+                    error: `User "${email}" is not registered yet. Copy and share the project invite link with them so they can join upon signup!`
+                });
+            }
+            targetUserIds.push(foundUser._id.toString());
+        }
+
+        if (targetUserIds.length === 0) {
+            return res.status(400).json({ error: "Please select a user or enter an email to invite." });
+        }
 
         const project = await projectService.addUsersToProject({
             projectId,
-            users,
+            users: targetUserIds,
             userId: loggedInUser._id
-        })
+        });
 
         return res.status(200).json({
             project,
-        })
+            message: "Collaborator added successfully!"
+        });
 
     } catch (err) {
-        console.log(err)
-        res.status(400).json({ error: err.message })
+        console.log(err);
+        res.status(400).json({ error: err.message });
     }
+}
 
+export const joinProject = async (req, res) => {
+    const { projectId } = req.body;
 
+    try {
+        const loggedInUser = await userModel.findOne({
+            email: req.user.email
+        });
+
+        if (!loggedInUser) {
+            return res.status(401).json({ error: "Unauthorized" });
+        }
+
+        const updatedProject = await projectModel.findByIdAndUpdate(
+            projectId,
+            { $addToSet: { users: loggedInUser._id } },
+            { new: true }
+        ).populate('users');
+
+        if (!updatedProject) {
+            return res.status(404).json({ error: "Project not found" });
+        }
+
+        return res.status(200).json({
+            project: updatedProject
+        });
+
+    } catch (err) {
+        console.log(err);
+        res.status(400).json({ error: err.message });
+    }
 }
 
 export const getProjectById = async (req, res) => {

@@ -36,6 +36,10 @@ const Project = () => {
     const messageBox = useRef(null)
 
     const [ users, setUsers ] = useState([])
+    const [ userSearch, setUserSearch ] = useState('')
+    const [ inviteEmail, setInviteEmail ] = useState('')
+    const [ inviteStatus, setInviteStatus ] = useState({ text: '', type: '' })
+    const [ copiedInviteLink, setCopiedInviteLink ] = useState(false)
     const [ messages, setMessages ] = useState([])
     const [ fileTree, setFileTree ] = useState({})
 
@@ -48,6 +52,18 @@ const Project = () => {
     const [ terminalLogs, setTerminalLogs ] = useState([])
     const [ showTerminal, setShowTerminal ] = useState(false)
     const [ runProcess, setRunProcess ] = useState(null)
+
+    const copyInviteLink = () => {
+        const pId = project?._id || location.state?.project?._id || new URLSearchParams(location.search).get('id')
+        if (!pId) return
+        const link = `${window.location.origin}/project?id=${pId}`
+        navigator.clipboard.writeText(link).then(() => {
+            setCopiedInviteLink(true)
+            setTimeout(() => setCopiedInviteLink(false), 2500)
+        }).catch(() => {
+            setInviteStatus({ text: `Share this link: ${link}`, type: 'info' })
+        })
+    }
 
     const handleUserClick = (id) => {
         setSelectedUserId(prevSelectedUserId => {
@@ -62,17 +78,34 @@ const Project = () => {
     }
 
     function addCollaborators() {
-        if (!project?._id) return
+        const pId = project?._id || location.state?.project?._id || new URLSearchParams(location.search).get('id')
+        if (!pId) return
+        setInviteStatus({ text: '', type: '' })
 
-        axios.put('/projects/add-user', {
-            projectId: project._id,
+        const payload = {
+            projectId: pId,
             users: Array.from(selectedUserId)
-        }).then(res => {
-            setProject(res.data.project)
-            setIsModalOpen(false)
+        }
+
+        if (inviteEmail.trim()) {
+            payload.email = inviteEmail.trim()
+        }
+
+        axios.put('/projects/add-user', payload).then(res => {
+            if (res.data.project) {
+                setProject(res.data.project)
+            }
+            setInviteStatus({ text: res.data.message || 'Collaborator added successfully!', type: 'success' })
             setSelectedUserId(new Set())
+            setInviteEmail('')
+            setTimeout(() => {
+                setIsModalOpen(false)
+                setInviteStatus({ text: '', type: '' })
+            }, 1500)
         }).catch(err => {
             console.error('Failed to add collaborators:', err)
+            const errMsg = err.response?.data?.error || 'Failed to add collaborator.'
+            setInviteStatus({ text: errMsg, type: 'error' })
         })
     }
 
@@ -145,12 +178,16 @@ const Project = () => {
     }
 
     useEffect(() => {
-        if (!project || !project._id) {
+        const queryParams = new URLSearchParams(location.search)
+        const urlProjectId = queryParams.get('id') || queryParams.get('projectId')
+        const effectiveProjectId = project?._id || location.state?.project?._id || urlProjectId
+
+        if (!effectiveProjectId) {
             navigate('/dashboard')
             return
         }
 
-        initializeSocket(project._id)
+        initializeSocket(effectiveProjectId)
 
         if (!webContainer) {
             getWebContainer().then(container => {
@@ -180,19 +217,34 @@ const Project = () => {
             setMessages(prev => [ ...prev, data ])
         })
 
-        axios.get(`/projects/get-project/${project._id}`).then(res => {
+        // Automatically join or fetch project by ID
+        axios.post('/projects/join', { projectId: effectiveProjectId }).then(res => {
             const p = res.data.project
             setProject(p)
             if (p.fileTree) {
                 setFileTree(p.fileTree)
                 const files = Object.keys(p.fileTree)
-                if (files.length > 0 && !currentFile) {
+                if (files.length > 0) {
                     setCurrentFile(files[0])
                     setOpenFiles([ files[0] ])
                 }
             }
-        }).catch(err => {
-            console.error('Error fetching project:', err)
+        }).catch(() => {
+            axios.get(`/projects/get-project/${effectiveProjectId}`).then(res => {
+                const p = res.data.project
+                setProject(p)
+                if (p.fileTree) {
+                    setFileTree(p.fileTree)
+                    const files = Object.keys(p.fileTree)
+                    if (files.length > 0) {
+                        setCurrentFile(files[0])
+                        setOpenFiles([ files[0] ])
+                    }
+                }
+            }).catch(err => {
+                console.error('Error fetching project:', err)
+                navigate('/dashboard')
+            })
         })
 
         axios.get('/users/all').then(res => {
@@ -767,67 +819,162 @@ const Project = () => {
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className={`border p-6 rounded-2xl w-full max-w-md relative shadow-2xl ${
-                        isDark ? 'bg-[#10121a] border-zinc-800' : 'bg-white border-zinc-200'
+                        isDark ? 'bg-[#10121a] border-zinc-800 text-zinc-100' : 'bg-white border-zinc-200 text-zinc-900'
                     }`}>
                         <header className="flex justify-between items-center mb-4">
                             <h2 className="text-base font-bold flex items-center gap-2">
                                 <i className="ri-user-add-line text-orange-500"></i>
                                 Invite Collaborator to Workspace
                             </h2>
-                            <button onClick={() => setIsModalOpen(false)} className="text-zinc-400 hover:text-zinc-600 dark:hover:text-white">
+                            <button
+                                onClick={() => { setIsModalOpen(false); setInviteStatus({ text: '', type: '' }); }}
+                                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-white"
+                            >
                                 <i className="ri-close-line text-lg"></i>
                             </button>
                         </header>
 
-                        <div className="users-list flex flex-col gap-2 mb-6 max-h-64 overflow-y-auto">
+                        {/* 1. Shareable Project Invite Link */}
+                        <div className={`p-3.5 rounded-xl border mb-4 ${
+                            isDark ? 'bg-[#151824] border-orange-500/30' : 'bg-orange-50/70 border-orange-300'
+                        }`}>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-orange-500 flex items-center gap-1.5">
+                                    <i className="ri-link"></i> Project Invite Link
+                                </span>
+                                <span className="text-[10px] text-zinc-400">Instant access</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="text"
+                                    readOnly
+                                    value={`${window.location.origin}/project?id=${project?._id || ''}`}
+                                    className={`flex-1 text-xs px-3 py-2 rounded-lg font-mono border select-all ${
+                                        isDark
+                                            ? 'bg-black/60 border-zinc-800 text-zinc-200'
+                                            : 'bg-white border-zinc-300 text-zinc-800'
+                                    }`}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={copyInviteLink}
+                                    className={`px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm ${
+                                        copiedInviteLink
+                                            ? 'bg-emerald-500 text-black'
+                                            : 'bg-orange-500 hover:bg-orange-400 text-black'
+                                    }`}
+                                >
+                                    <i className={copiedInviteLink ? "ri-check-line font-bold" : "ri-file-copy-line"}></i>
+                                    <span>{copiedInviteLink ? 'Copied!' : 'Copy Link'}</span>
+                                </button>
+                            </div>
+                            <p className="text-[10px] text-zinc-400 mt-2">
+                                Anyone with this link automatically joins this collaborative room upon opening it.
+                            </p>
+                        </div>
+
+                        {/* 2. Invite By Email */}
+                        <div className="mb-4">
+                            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400 mb-1.5">
+                                Invite by Teammate Email
+                            </label>
+                            <div className="flex gap-2">
+                                <input
+                                    type="email"
+                                    value={inviteEmail}
+                                    onChange={(e) => setInviteEmail(e.target.value)}
+                                    placeholder="colleague@example.com"
+                                    className={`flex-1 border text-xs px-3 py-2 rounded-lg placeholder-zinc-500 focus:outline-none focus:border-orange-500 ${
+                                        isDark ? 'bg-zinc-900 border-zinc-800 text-zinc-100' : 'bg-zinc-50 border-zinc-300 text-zinc-900'
+                                    }`}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') addCollaborators(); }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={addCollaborators}
+                                    disabled={!inviteEmail.trim()}
+                                    className="px-4 py-2 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-zinc-950 text-xs font-bold rounded-lg transition-all disabled:opacity-40"
+                                >
+                                    Invite
+                                </button>
+                            </div>
+                            {inviteStatus.text && (
+                                <p className={`text-xs mt-2 font-medium ${inviteStatus.type === 'error' ? 'text-rose-400' : 'text-emerald-400'}`}>
+                                    {inviteStatus.text}
+                                </p>
+                            )}
+                        </div>
+
+                        {/* 3. Registered Users Selection */}
+                        <div className="mb-2 flex items-center justify-between">
+                            <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                                Registered Users ({users.length})
+                            </label>
+                            {users.length > 2 && (
+                                <input
+                                    type="text"
+                                    placeholder="Search..."
+                                    value={userSearch}
+                                    onChange={e => setUserSearch(e.target.value)}
+                                    className="text-[11px] bg-transparent border-b border-zinc-700 px-1 py-0.5 text-zinc-300 focus:outline-none focus:border-orange-500"
+                                />
+                            )}
+                        </div>
+
+                        <div className="users-list flex flex-col gap-2 mb-6 max-h-40 overflow-y-auto">
                             {users.length === 0 ? (
-                                <p className="text-xs text-zinc-500 py-4 text-center">No other registered users found.</p>
+                                <div className="text-center py-4 px-2 border border-dashed border-zinc-800 rounded-xl">
+                                    <p className="text-xs text-zinc-400 mb-1">No other registered users in the database yet.</p>
+                                    <p className="text-[11px] text-orange-400">Use the <strong>Project Invite Link</strong> above to share with your teammates!</p>
+                                </div>
                             ) : (
-                                users.map(u => {
-                                    const isSelected = selectedUserId.has(u._id)
-                                    return (
-                                        <div
-                                            key={u._id}
-                                            onClick={() => handleUserClick(u._id)}
-                                            className={`p-3 rounded-xl cursor-pointer flex items-center justify-between border transition-all ${
-                                                isSelected
-                                                    ? 'bg-orange-500/15 border-orange-500'
-                                                    : isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
-                                            }`}
-                                        >
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-black font-bold flex items-center justify-center text-xs">
-                                                    {u.email.charAt(0).toUpperCase()}
+                                users
+                                    .filter(u => !userSearch || u.email.toLowerCase().includes(userSearch.toLowerCase()))
+                                    .map(u => {
+                                        const isSelected = selectedUserId.has(u._id)
+                                        return (
+                                            <div
+                                                key={u._id}
+                                                onClick={() => handleUserClick(u._id)}
+                                                className={`p-2.5 rounded-xl cursor-pointer flex items-center justify-between border transition-all ${
+                                                    isSelected
+                                                        ? 'bg-orange-500/15 border-orange-500'
+                                                        : isDark ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-50 border-zinc-200'
+                                                }`}
+                                            >
+                                                <div className="flex items-center gap-2.5">
+                                                    <div className="w-7 h-7 rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-black font-bold flex items-center justify-center text-xs">
+                                                        {u.email.charAt(0).toUpperCase()}
+                                                    </div>
+                                                    <span className="text-xs font-medium truncate max-w-[200px]">{u.email}</span>
                                                 </div>
-                                                <span className="text-xs font-medium truncate max-w-[200px]">{u.email}</span>
+                                                <div className={`w-4 h-4 rounded-md flex items-center justify-center border ${
+                                                    isSelected ? 'bg-orange-500 border-orange-500 text-black' : 'border-zinc-500'
+                                                }`}>
+                                                    {isSelected && <i className="ri-check-line text-[10px] font-bold"></i>}
+                                                </div>
                                             </div>
-                                            <div className={`w-5 h-5 rounded-md flex items-center justify-center border ${
-                                                isSelected ? 'bg-orange-500 border-orange-500 text-black' : 'border-zinc-500'
-                                            }`}>
-                                                {isSelected && <i className="ri-check-line text-xs font-bold"></i>}
-                                            </div>
-                                        </div>
-                                    )
-                                })
+                                        )
+                                    })
                             )}
                         </div>
 
                         <div className="flex items-center justify-end gap-3 pt-3 border-t border-zinc-800/40">
                             <button
                                 type="button"
-                                onClick={() => setIsModalOpen(false)}
+                                onClick={() => { setIsModalOpen(false); setInviteStatus({ text: '', type: '' }); }}
                                 className={`px-4 py-2 rounded-xl text-xs font-semibold ${
                                     isDark ? 'bg-zinc-900 text-zinc-300' : 'bg-zinc-100 text-zinc-700'
                                 }`}
                             >
-                                Cancel
+                                Close
                             </button>
                             <button
                                 onClick={addCollaborators}
-                                disabled={selectedUserId.size === 0}
+                                disabled={selectedUserId.size === 0 && !inviteEmail.trim()}
                                 className="px-5 py-2 rounded-xl bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-400 hover:to-amber-400 text-zinc-950 font-bold text-xs shadow-md transition-all disabled:opacity-40"
                             >
-                                Add {selectedUserId.size > 0 ? `(${selectedUserId.size})` : ''} Collaborator
+                                {selectedUserId.size > 0 ? `Add (${selectedUserId.size}) Selected` : 'Add Collaborator'}
                             </button>
                         </div>
                     </div>
