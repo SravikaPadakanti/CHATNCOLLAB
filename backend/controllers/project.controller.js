@@ -1,5 +1,6 @@
 import projectModel from '../models/project.model.js';
 import * as projectService from '../services/project.service.js';
+import * as userService from '../services/user.service.js';
 import userModel from '../models/user.model.js';
 import { validationResult } from 'express-validator';
 
@@ -15,7 +16,10 @@ export const createProject = async (req, res) => {
     try {
 
         const { name } = req.body;
-        const loggedInUser = await userModel.findOne({ email: req.user.email });
+        const loggedInUser = await userService.getOrCreateUser(req.user);
+        if (!loggedInUser) {
+            return res.status(401).json({ error: 'User session not found. Please log in again.' });
+        }
         const userId = loggedInUser._id;
 
         const newProject = await projectService.createProject({ name, userId });
@@ -24,7 +28,10 @@ export const createProject = async (req, res) => {
 
     } catch (err) {
         console.log(err);
-        res.status(400).send(err.message);
+        if (err.code === 11000) {
+            return res.status(400).send(`A project named "${req.body.name}" already exists. Please choose a different name.`);
+        }
+        res.status(400).send(err.message || 'Failed to create workspace');
     }
 
 
@@ -34,9 +41,10 @@ export const createProject = async (req, res) => {
 export const getAllProject = async (req, res) => {
     try {
 
-        const loggedInUser = await userModel.findOne({
-            email: req.user.email
-        })
+        const loggedInUser = await userService.getOrCreateUser(req.user);
+        if (!loggedInUser) {
+            return res.status(200).json({ projects: [] });
+        }
 
         const allUserProjects = await projectService.getAllProjectByUserId({
             userId: loggedInUser._id
@@ -62,9 +70,10 @@ export const addUserToProject = async (req, res) => {
     try {
         const { projectId, users, email } = req.body;
 
-        const loggedInUser = await userModel.findOne({
-            email: req.user.email
-        });
+        const loggedInUser = await userService.getOrCreateUser(req.user);
+        if (!loggedInUser) {
+            return res.status(401).json({ error: "User session not found. Please log in again." });
+        }
 
         let targetUserIds = [];
         if (Array.isArray(users)) {
@@ -106,9 +115,7 @@ export const joinProject = async (req, res) => {
     const { projectId } = req.body;
 
     try {
-        const loggedInUser = await userModel.findOne({
-            email: req.user.email
-        });
+        const loggedInUser = await userService.getOrCreateUser(req.user);
 
         if (!loggedInUser) {
             return res.status(401).json({ error: "Unauthorized" });

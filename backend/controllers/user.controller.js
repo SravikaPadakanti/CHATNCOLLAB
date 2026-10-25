@@ -95,9 +95,10 @@ export const logoutController = async (req, res) => {
 export const getAllUsersController = async (req, res) => {
     try {
 
-        const loggedInUser = await userModel.findOne({
-            email: req.user.email
-        })
+        const loggedInUser = await userService.getOrCreateUser(req.user);
+        if (!loggedInUser) {
+            return res.status(200).json({ users: [] });
+        }
 
         const allUsers = await userService.getAllUsers({ userId: loggedInUser._id });
 
